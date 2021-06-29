@@ -1,22 +1,42 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../db/sequelize-pg');
 const { DataTypeNoTz } = require('../utils/date-utils');
-const { Country } = require('./country');
+const { City } = require('./city');
 
-
-module.exports.City = sequelize.define('city', {
+module.exports.Weather = sequelize.define('weather', {
     id: {
         type: DataTypes.UUIDV4,
         primaryKey: true,
         defaultValue: DataTypes.UUIDV4
     },
-    name: {
-        type: DataTypes.TEXT
+    dt: {
+        type: DataTypes.DATE
     },
-    latitude: {
+    tempMin: {
         type: DataTypes.DOUBLE
     },
-    longitude: {
+    tempMax: {
+        type: DataTypes.DOUBLE
+    },
+    pressure: {
+        type: DataTypes.DOUBLE
+    },
+    humidity: {
+        type: DataTypes.DOUBLE
+    },
+    condition: {
+        type: DataTypes.TEXT
+    },
+    cloudiness: {
+        type: DataTypes.DOUBLE
+    },
+    windSpeed: {
+        type: DataTypes.DOUBLE
+    },
+    windDirection: {
+        type: DataTypes.DOUBLE
+    },
+    precipitation: {
         type: DataTypes.DOUBLE
     },
     createdAt: {
@@ -29,9 +49,9 @@ module.exports.City = sequelize.define('city', {
             return DataTypeNoTz(this.getDataValue('updatedAt'));
         }
     },
-    countryId: {
+    cityId: {
         type: DataTypes.UUIDV4, references: {
-            model: Country,
+            model: City,
             key: 'id',
             // deferrable: INITIALLY_IMMEDIATE
         }
@@ -42,4 +62,3 @@ module.exports.City = sequelize.define('city', {
     createdAt: false,
     updatedAt: false
 });
-
