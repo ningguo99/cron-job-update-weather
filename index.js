@@ -72,7 +72,7 @@ const forecastWeather = async () => {
                 }
             }, { transaction: t });
 
-            // update the existing weather records using random data
+            // update the existing weather records (starting from current day) using random data
             for (let j = 0; j < count; j++) {
                 const dt = new Date(currentDay.plus({ days: j }).toISO());
                 await Weather.update({ ...generateRandomWeather(dt, id), updatedAt: new Date() }, {

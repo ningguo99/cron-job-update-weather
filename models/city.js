@@ -3,7 +3,6 @@ const { sequelize } = require('../db/sequelize-pg');
 const { DataTypeNoTz } = require('../utils/date-utils');
 const { Country } = require('./country');
 
-
 module.exports.City = sequelize.define('city', {
     id: {
         type: DataTypes.UUIDV4,
