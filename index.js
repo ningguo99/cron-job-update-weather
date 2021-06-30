@@ -1,35 +1,21 @@
 const cron = require('node-cron');
 const express = require('express');
-
 const app = express();
 const port = process.env.PORT || 5000;
 
-
-console.log(process.env.NODE_ENV)
-
 const { sequelize } = require('./db/sequelize-pg');
-
-
-
-const { DataTypes, Sequelize } = require('sequelize');
-const { City } = require('./models/city');
-const { Country } = require('./models/country');
-const { Weather } = require('./models/weather');
-
+const { Sequelize } = require('sequelize');
 const Op = Sequelize.Op;
 
+const { DateTime } = require('luxon');
 const tzlookup = require('tz-lookup');
 
-const { DateTime } = require('luxon');
+// import models
+const { City } = require('./models/city');
+const { Weather } = require('./models/weather');
+
+// import utils
 const { RoundAtDecimal } = require('./utils/math-utils');
-
-
-
-const abc = async () => {
-    const model = await Country(sequelize, DataTypes).create({ name: 'china' });
-    console.log(model)
-}
-
 
 const weatherConditions = ['sunny', 'cloudy', 'windy', 'rainy', 'snowy'];
 
@@ -61,55 +47,66 @@ const generateRandomWeather = (dt, cityId) => {
 };
 
 const forecastWeather = async () => {
-    const cities = await City.findAll({
-        // attributes: ['countryId']
-    });
-    for (let i = 0; i < cities.length; i++) {
-        const city = cities[i];
-        const lat = city.latitude;
-        const long = city.longitude;
-        const timezone = tzlookup(lat, long);
-        const currentTime = DateTime.local().setZone(timezone);
+    // start a transaction and save it into a variable
+    const t = await sequelize.transaction();
 
-        const startTime = currentTime.set({ hour: 0, minute: 0, second: 0, millisecond: 0 });
+    try {
+        // find all cities in the db
+        const cities = await City.findAll({ transaction: t });
 
-
-
-        // console.log(currentTime.toISO());
-        // console.log(currentTime.hour)
-        // console.log(startTime.toISO())
-
-
-
-
-        const count = (await Weather.findAll({
-            where: {
-                cityId: city.id,
-                dt: {
-                    [Op.gte]: new Date(startTime.toISO())
+        for (let i = 0; i < cities.length; i++) {
+            const city = cities[i];
+            const { id, latitude, longitude } = city;
+            // get the timezone for the current city based on coordinates
+            const timezone = tzlookup(latitude, longitude);
+            // get the current time for this timezone
+            const currentTime = DateTime.local().setZone(timezone);
+            // set 00:00 to current day
+            const currentDay = currentTime.set({ hour: 0, minute: 0, second: 0, millisecond: 0 });
+            const count = await Weather.count({
+                where: {
+                    cityId: id,
+                    dt: {
+                        [Op.gte]: new Date(currentDay.toISO())
+                    }
                 }
+            }, { transaction: t });
+
+            // update the existing weather records using random data
+            for (let j = 0; j < count; j++) {
+                const dt = new Date(currentDay.plus({ days: j }).toISO());
+                await Weather.update({ ...generateRandomWeather(dt, id), updatedAt: new Date() }, {
+                    where: {
+                        dt,
+                        cityId: id
+                    }
+                });
             }
-        })).length;
 
-        for (let j = count; j < 10; j++) {
-            const dt = new Date(startTime.plus({ days: j }).toISO());
-            await Weather.create(generateRandomWeather(dt, city.id));
+            // add new weather record(s) until the current city has next 10-day weather forecasts in the db
+            for (let j = count; j < 10; j++) {
+                const dt = new Date(currentDay.plus({ days: j }).toISO());
+                await Weather.create(generateRandomWeather(dt, city.id), { transaction: t });
+            }
         }
-
+        // commit the transaction if everything goes ok
+        await t.commit();
+    } catch (error) {
+        console.log(error);
+        // roll back the transaction if an error was thrown
+        await t.rollback();
     }
 }
 
+// execute the job first when starting the server
 forecastWeather();
 
+// schedule the job every 15 mins
+cron.schedule('*/15 * * * *', () => {
+    console.log('Updating weathers...');
+    forecastWeather();
+})
 
-// cron.schedule('30 0-23 * * *', () => {
-//     console.log('running');
-// })
-
-
-
-
-
-// app.listen(port, () => {
-//     console.log(`Listening on port ${port}...`);
-// });
+app.listen(port, () => {
+    console.log(`Listening on port ${port}...`);
+});
