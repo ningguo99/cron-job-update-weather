@@ -84,7 +84,7 @@ const forecastWeather = async () => {
             }
 
             // add new weather record(s) until the current city has next 10-day weather forecasts in the db
-            for (let j = count; j < 10; j++) {
+            for (let j = count; j < 11; j++) {
                 const dt = new Date(currentDay.plus({ days: j }).toISO());
                 await Weather.create(generateRandomWeather(dt, city.id), { transaction: t });
             }
