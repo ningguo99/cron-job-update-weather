@@ -47,6 +47,7 @@ const generateRandomWeather = (dt, cityId) => {
 };
 
 const forecastWeather = async () => {
+    console.log('Updating weathers...' + new Date().toUTCString());
     // start a transaction and save it into a variable
     const t = await sequelize.transaction();
 
@@ -80,7 +81,7 @@ const forecastWeather = async () => {
                         dt,
                         cityId: id
                     }
-                });
+                }, { transaction: t });
             }
 
             // add new weather record(s) until the current city has next 10-day weather forecasts in the db
@@ -103,7 +104,6 @@ forecastWeather();
 
 // schedule the job every 15 mins
 cron.schedule('*/15 * * * *', () => {
-    console.log('Updating weathers...');
     forecastWeather();
 })
 
